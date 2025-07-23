@@ -1,0 +1,59 @@
+git init 
+PS C:\Users\mayal\OneDrive\Área de Trabalho\Codigos> ls
+
+
+    Diretório: C:\Users\mayal\OneDrive\Área de Trabalho\Codigos
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d-----        16/07/2025     21:05                CalculadoraIMC
+d-----        21/07/2025     19:31                PythonExercicios
+-a----        21/07/2025     20:05             11 comandos.txt
+
+
+PS C:\Users\mayal\OneDrive\Área de Trabalho\Codigos> git add comandos.txt
+PS C:\Users\mayal\OneDrive\Área de Trabalho\Codigos> git commit -m 'teste arquivo de comando' 
+Author identity unknown
+
+*** Please tell me who you are.
+
+Run
+
+  git config --global user.email "you@example.com"
+  git config --global user.name "Your Name"
+
+to set your account's default identity.
+Omit --global to set the identity only in this repository.
+
+fatal: unable to auto-detect email address (got 'mayal@MAYARA.(none)')
+PS C:\Users\mayal\OneDrive\Área de Trabalho\Codigos> git config --global user.email "mayalvesmartins@gmail.com"
+PS C:\Users\mayal\OneDrive\Área de Trabalho\Codigos>  git config --global user.name "Mayara Alves"
+PS C:\Users\mayal\OneDrive\Área de Trabalho\Codigos> git commit -m 'teste arquivo de comando'
+[master (root-commit) d75a4b5] teste arquivo de comando
+ 1 file changed, 1 insertion(+)
+ create mode 100644 comandos.txt
+PS C:\Users\mayal\OneDrive\Área de Trabalho\Codigos> giit add. 
+giit : O termo 'giit' não é reconhecido como nome de cmdlet, função, arquivo de script ou programa operável. Verifique a grafia do 
+nome ou, se um caminho tiver sido incluído, veja se o caminho está correto e tente novamente.
+No linha:1 caractere:1
++ giit add.
++ ~~~~
+    + CategoryInfo          : ObjectNotFound: (giit:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\Users\mayal\OneDrive\Área de Trabalho\Codigos> git add. 
+git: 'add.' is not a git command. See 'git --help'.
+
+The most similar command is
+        add
+PS C:\Users\mayal\OneDrive\Área de Trabalho\Codigos> git add .
+PS C:\Users\mayal\OneDrive\Área de Trabalho\Codigos> git commit -m 'teste'
+[master ebe39cb] teste
+ 5 files changed, 49 insertions(+)
+ create mode 100644 CalculadoraIMC/imc.py
+ create mode 100644 PythonExercicios/Ex0003.py
+ create mode 100644 PythonExercicios/Ex0004.py
+ create mode 100644 PythonExercicios/Ex001.py
+ create mode 100644 PythonExercicios/Ex002.py
+PS C:\Users\mayal\OneDrive\Área de Trabalho\Codigos>
