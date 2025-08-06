@@ -1,0 +1,7 @@
+nome = input('digite seu nome: ')
+idade = int(input('digite sua idade: '))
+trabalha = input('voce trabalha? (sim/não): ')
+print('resumo:')
+print('nome:' , nome )
+print('idade:' , idade )
+print('trabalha:' , trabalha )
