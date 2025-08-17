@@ -56,8 +56,8 @@
 #       c = 49
 
 
-c = 1
-while c <= 100:
-    if(c != 47):
-        print(c)
-    c += 1
+# c = 1
+# while c <= 100:
+#     if(c != 47):
+#         print(c)
+#     c += 1

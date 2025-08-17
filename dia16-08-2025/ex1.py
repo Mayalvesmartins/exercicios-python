@@ -9,11 +9,11 @@
 # for i in range(5,15):
 #     print(f'{numero} x {i + 1} = {numero * (i + 1)}')
 
-# numero = int(input("Digite um numero: "))
-# i = 6
-# while i <= 15:
-#     print(f'{numero} x {i} = {numero * i}')
-#     i += 1
+numero = int(input("Digite um numero: "))
+i = 1
+while i <= 10:
+    print(f'{numero} x {i} = {numero * i}')
+    i += 1
 
 # i = 10
 # while i >= 0:
@@ -61,11 +61,11 @@
 # print(f'são {contagem} vogais. ')
 
 
-import random
-numero = random.randint(1 , 10)
-usuario = int(input('De o seu palpite: '))
-if numero == usuario:
-    print('voce acertou. ')
-else:
-    print('voce errou. ')
-print(f'o numero gerado pelo computador foi {numero}, o seu numero foi {usuario}. ')
+# import random
+# numero = random.randint(1 , 10)
+# usuario = int(input('De o seu palpite: '))
+# if numero == usuario:
+#     print('voce acertou. ')
+# else:
+#     print('voce errou. ')
+# print(f'o numero gerado pelo computador foi {numero}, o seu numero foi {usuario}. ')
