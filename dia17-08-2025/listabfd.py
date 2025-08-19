@@ -1,12 +1,12 @@
 # exercicio 1
 # numero_str = "123"
 
-# numero_int = int(numero_str)
-# print(numero_int)   
+# # numero_int = int(numero_str)
+# # print(numero_int)   
 
 
-# numero_float = float(numero_str)
-# print(numero_float)  
+# # numero_float = float(numero_str)
+# # print(numero_float)  
 
 
 
@@ -78,11 +78,11 @@
 
 
 # exercicio 10
-estoque = {
-    "maçã": 10,
-    "banana": 5,
-    "laranja": 8
-}
-estoque["pera"] = 12
-del estoque["banana"]
-print(estoque.keys())
+# estoque = {
+#     "maçã": 10,
+#     "banana": 5,
+#     "laranja": 8
+# }
+# estoque["pera"] = 12
+# del estoque["banana"]
+# print(estoque.keys())
