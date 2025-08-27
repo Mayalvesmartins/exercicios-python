@@ -1,7 +1,7 @@
-# livro = {'titulo': 'O conde de monte cristo' , 'autor': 'alexndre dumas' , 'ano': 1844 }
-# print(f'titulo: {livro['titulo']}')
-# print(f'autor: {livro['autor']}')
-# print(f'ano: {livro['ano']}')
+livro = {'titulo': 'O conde de monte cristo' , 'autor': 'alexndre dumas' , 'ano': 1844 }
+print(f'titulo: {livro['titulo']}')
+print(f'autor: {livro['autor']}')
+print(f'ano: {livro['ano']}')
 
 
 # agenda =  {'Mayara': '(62) 9 93882920', 'joao': '(62) 9 12345678' , 'pedro': '(62) 9 87654321'}
@@ -25,11 +25,11 @@
 
 
       
-linguagens = {'python' , 'java', 'c++', 'javascript', 'ruby'}
-print('Lista original: ')
-print(linguagens)
-print(f'Tamanho da lista: {len(linguagens)}')
-linguagens_unicas = set(linguagens)
-print('\nconjunto sem duplicatas: ')
-print(linguagens_unicas)
-print('f tamanho do conjunto: ', len(linguagens_unicas))
+# linguagens = {'python' , 'java', 'c++', 'javascript', 'ruby'}
+# print('Lista original: ')
+# print(linguagens)
+# print(f'Tamanho da lista: {len(linguagens)}')
+# linguagens_unicas = set(linguagens)
+# print('\nconjunto sem duplicatas: ')
+# print(linguagens_unicas)
+# print(f' tamanho do conjunto: ', len(linguagens_unicas))
