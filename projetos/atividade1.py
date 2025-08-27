@@ -1,6 +1,3 @@
-# Alunas do trabalho: Mayara alves martins e Francineide rosa de albuquerque silva
-# Atividade 1 - Sistema de Biblioteca
-
 livros = [
     {"titulo": "Dom Casmurro", "autor": "Machado de Assis", "categoria": "Romance" , "ano": "1899"},
     {"titulo": "o principe cruel" , "autor": "Kiera Cass", "categoria": "Romance" , "ano": "2013"},
