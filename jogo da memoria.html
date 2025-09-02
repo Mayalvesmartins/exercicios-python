@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Memory Game — HTML Canvas</title>
+  <style>
+    :root {
+      --bg: #0f1220;
+      --panel: #171a2b;
+      --accent: #7c5cff;
+      --text: #e8eaf6;
+      --muted: #9aa0b8;
+      --good: #2ecc71;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+      display: grid; min-height: 100svh; place-items: center;
+    }
+    .wrap{
+      width: min(1100px, 95vw);
+      display: grid; gap: 12px;
+    }
+    .topbar{
+      display: flex; align-items: center; justify-content: space-between;
+      background: linear-gradient(180deg, #1b1e33, var(--panel));
+      padding: 10px 14px; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    .left, .right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .pill {
+      background: #0f1122; border: 1px solid #242846; color: var(--text);
+      padding: 8px 10px; border-radius: 999px; font-weight: 600; letter-spacing: .3px;
+    }
+    .btn {
+      border: 0; background: var(--accent); color: white; padding: 10px 14px; border-radius: 10px; font-weight: 700; cursor: pointer;
+      transition: transform .1s ease, filter .2s ease; box-shadow: 0 6px 18px rgba(124,92,255,.35);
+    }
+    .btn:active{ transform: translateY(1px) scale(.99); }
+    .select { background: #0f1122; color: var(--text); border: 1px solid #242846; border-radius: 10px; padding: 10px 12px; }
+    canvas { width: 100%; height: auto; background: #0c0f1d; border-radius: 16px; box-shadow: inset 0 0 0 1px #1e2344, 0 12px 40px rgba(0,0,0,.35); cursor: pointer; }
+    .foot{ text-align: center; color: var(--muted); font-size: 12px; opacity: .85; }
+    a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="left">
+        <span class="pill" id="pairsLabel">Pairs: 0/0</span>
+        <span class="pill" id="movesLabel">Moves: 0</span>
+        <span class="pill" id="timeLabel">Time: 0:00</span>
+        <span class="pill" id="missLabel" title="Avoidable mistakes">Misses: 0</span>
+      </div>
+      <div class="right">
+        <select id="difficulty" class="select" title="Difficulty">
+          <option value="easy">Easy 4×3</option>
+          <option value="medium" selected>Medium 6×4</option>
+          <option value="hard">Hard 8×6</option>
+        </select>
+        <button class="btn" id="newGame">New Game</button>
+      </div>
+    </div>
+
+    <canvas id="game" width="1200" height="800" aria-label="Memory game canvas" role="img"></canvas>
+    <div class="foot">Tip: click/tap cards. Finish with the fewest moves. Press <strong>N</strong> to start a new game. Press <strong>T</strong> to run built-in tests.</div>
+  </div>
+
+  <script>
+  (function(){
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    // HUD elements
+    const pairsLabel = document.getElementById('pairsLabel');
+    const movesLabel = document.getElementById('movesLabel');
+    const timeLabel = document.getElementById('timeLabel');
+    const missLabel  = document.getElementById('missLabel');
+    const newGameBtn = document.getElementById('newGame');
+    const diffSel = document.getElementById('difficulty');
+
+    const EMOJIS = [
+      '🐶','🐱','🦊','🐻','🐼','🐨','🐯','🦁','🐸','🐵','🐔','🐧','🐦','🦆','🦉','🦄','🐝','🦋','🌸','🌼','🌻','🌞','🌙','⭐','⚡','🔥','❄️','💧','🍎','🍉','🍌','🍇','🍓','🍒','🥝','🥑','🥕','🍔','🍕','🍩','🎈','🎲','🎯','🎵','🎮','🏀','⚽','🏆','🚗','✈️','🚀','🧩','💎','📀','💡','🧠','🪄','🔮','🎁'
+    ];
+
+    const DIFFS = {
+      easy:   { cols: 4, rows: 3 }, // 12 cards = 6 pairs
+      medium: { cols: 6, rows: 4 }, // 24 cards = 12 pairs
+      hard:   { cols: 8, rows: 6 }  // 48 cards = 24 pairs
+    };
+
+    let state = {
+      grid: { cols: 6, rows: 4 },
+      cards: [],
+      revealed: [], // indices of currently face-up (not matched) cards
+      matchedCount: 0,
+      moves: 0,
+      misses: 0, // count of avoidable misses under your rule
+      startedAt: 0,
+      elapsed: 0,
+      board: { x: 20, y: 20, w: canvas.width - 40, h: canvas.height - 40 },
+      anims: new Map(), // id -> progress
+      lock: false,
+      showEnd: false,
+      endStats: null, // { perfect, moves, delta, time, misses }
+      knowledge: new Map(), // value -> Set of indices seen & unmatched
+    };
+
+    function randShuffle(arr){
+      for(let i = arr.length - 1; i > 0; i--){
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function makeDeck(cols, rows){
+      const total = cols * rows;
+      const pairs = total / 2;
+      const picks = randShuffle(EMOJIS.slice()).slice(0, pairs);
+      const deck = randShuffle([...picks, ...picks]).map((value, idx) => ({
+        id: idx,
+        value,
+        matched: false,
+        flipped: false,
+        flipProg: 0,
+      }));
+      return deck;
+    }
+
+    function resetKnowledge(){
+      state.knowledge = new Map();
+    }
+    function addKnowledge(value, idx){
+      if(!state.knowledge.has(value)) state.knowledge.set(value, new Set());
+      state.knowledge.get(value).add(idx);
+    }
+    function removeFromKnowledge(value, idx){
+      const set = state.knowledge.get(value);
+      if(set){ set.delete(idx); if(set.size===0) state.knowledge.delete(value); }
+    }
+    function knownMateIndex(value, exceptIdx){
+      const set = state.knowledge.get(value);
+      if(!set) return null;
+      for(const i of set){ if(i !== exceptIdx) return i; }
+      return null;
+    }
+    function hasSolvablePair(){
+      for(const [,set] of state.knowledge){ if(set.size >= 2) return true; }
+      return false;
+    }
+    function indexIsInAnyKnownPair(idx){
+      const v = state.cards[idx]?.value; if(!v) return false;
+      const set = state.knowledge.get(v);
+      return !!(set && set.has(idx) && set.size>=2);
+    }
+
+    function startGame(diff = diffSel.value){
+      const { cols, rows } = DIFFS[diff] || DIFFS.medium;
+      state.grid = { cols, rows };
+      state.cards = makeDeck(cols, rows);
+      state.revealed = [];
+      state.matchedCount = 0;
+      state.moves = 0;
+      state.misses = 0;
+      state.startedAt = performance.now();
+      state.elapsed = 0;
+      state.lock = false;
+      state.anims.clear();
+      state.showEnd = false;
+      state.endStats = null;
+      resetKnowledge();
+      updateHUD();
+      layout();
+      draw();
+    }
+
+    function updateHUD(){
+      const totalPairs = (state.grid.cols * state.grid.rows) / 2;
+      if(pairsLabel) pairsLabel.textContent = `Pairs: ${state.matchedCount}/${totalPairs}`;
+      if(movesLabel) movesLabel.textContent = `Moves: ${state.moves}`;
+      if(missLabel)  missLabel.textContent  = `Misses: ${state.misses}`;
+    }
+
+    function layout(){
+      const wrap = document.querySelector('.wrap');
+      const scale = window.devicePixelRatio || 1;
+      const targetW = Math.min(1200, wrap ? wrap.clientWidth : 800);
+      const targetH = Math.round(targetW * 2/3);
+      canvas.style.width = targetW + 'px';
+      canvas.style.height = targetH + 'px';
+      canvas.width = Math.floor(targetW * scale);
+      canvas.height = Math.floor(targetH * scale);
+
+      state.board = { x: 24*scale, y: 24*scale, w: canvas.width - 48*scale, h: canvas.height - 48*scale };
+    }
+
+    function cardRect(index){
+      const { cols, rows } = state.grid;
+      const pad = 12 * (window.devicePixelRatio || 1);
+      const cellW = (state.board.w - pad*(cols+1)) / cols;
+      const cellH = (state.board.h - pad*(rows+1)) / rows;
+      const col = index % cols;
+      const row = (index / cols) | 0;
+      const x = state.board.x + pad + col*(cellW + pad);
+      const y = state.board.y + pad + row*(cellH + pad);
+      return { x, y, w: cellW, h: cellH };
+    }
+
+    function pointInRect(px, py, r){
+      return px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
+    }
+
+    function flip(cardIdx){
+      const c = state.cards[cardIdx];
+      if(!c || c.matched || c.flipped) return;
+
+      // --- Miss logic BEFORE flipping based on your rules ---
+      if(state.revealed.length === 0){
+        // Start of a move: if we already know a solvable pair and the chosen first card
+        // is not one of those two indices, count a miss.
+        if(hasSolvablePair() && !indexIsInAnyKnownPair(cardIdx)){
+          state.misses++;
+          updateHUD();
+        }
+      } else if(state.revealed.length === 1){
+        // Choosing second card: if the mate for the first card is already known
+        // and we didn't pick it, count a miss.
+        const firstIdx = state.revealed[0];
+        const firstVal = state.cards[firstIdx].value;
+        const mate = knownMateIndex(firstVal, firstIdx);
+        if(mate != null && mate !== cardIdx){
+          state.misses++;
+          updateHUD();
+        }
+      }
+
+      // Proceed with flip
+      c.flipped = true;
+      state.revealed.push(cardIdx);
+      state.anims.set(c.id, { t: 0, dir: 1 });
+      addKnowledge(c.value, cardIdx);
+
+      if(state.revealed.length === 2){
+        state.moves++;
+        updateHUD();
+        const [aIdx, bIdx] = state.revealed;
+        const A = state.cards[aIdx];
+        const B = state.cards[bIdx];
+        state.lock = true;
+        setTimeout(() => {
+          if(A.value === B.value){
+            A.matched = B.matched = true;
+            state.matchedCount++;
+            // Remove pair from knowledge (solved)
+            removeFromKnowledge(A.value, aIdx);
+            removeFromKnowledge(B.value, bIdx);
+            pulse(cardRect(aIdx));
+            pulse(cardRect(bIdx));
+          } else {
+            A.flipped = false; B.flipped = false;
+            state.anims.set(A.id, { t: 1, dir: -1 });
+            state.anims.set(B.id, { t: 1, dir: -1 });
+            // Keep their knowledge (still known positions)
+          }
+          state.revealed.length = 0;
+          state.lock = false;
+          updateHUD();
+          if(isWin()) celebrate();
+        }, 550);
+      }
+    }
+
+    function isWin(){
+      return state.matchedCount === (state.grid.cols*state.grid.rows)/2;
+    }
+
+    function finalizeWin(){
+      const perfect = Math.max(0, state.moves - state.misses);
+      const delta = state.misses; // how far off from your dynamic perfect
+      state.endStats = { perfect, moves: state.moves, delta, time: state.elapsed, misses: state.misses };
+      state.showEnd = true;
+    }
+
+    function celebrate(){
+      for(let i=0;i<60;i++) sparkle();
+      finalizeWin();
+    }
+
+    const particles = [];
+    function sparkle(){
+      const x = state.board.x + Math.random()*state.board.w;
+      const y = state.board.y + Math.random()*state.board.h;
+      particles.push({ x, y, r: 0, life: 1 });
+    }
+
+    function pulse(rect){
+      particles.push({ x: rect.x + rect.w/2, y: rect.y + rect.h/2, r: 0, life: 1.2 });
+    }
+
+    function update(dt){
+      const speed = 6; // flip speed
+      for(const [id, anim] of state.anims){
+        anim.t += anim.dir * speed * dt;
+        if(anim.t <= 0 || anim.t >= 1){
+          anim.t = Math.max(0, Math.min(1, anim.t));
+          if(anim.dir < 0) state.anims.delete(id);
+        }
+      }
+      for(const p of particles){
+        p.r += 400*dt;
+        p.life -= 0.9*dt;
+      }
+      for(let i=particles.length-1;i>=0;i--){ if(particles[i].life<=0) particles.splice(i,1); }
+
+      if(!isWin()) state.elapsed = (performance.now() - state.startedAt) / 1000;
+      renderTime();
+    }
+
+    function renderTime(){
+      const s = Math.floor(state.elapsed%60).toString().padStart(2,'0');
+      const m = Math.floor(state.elapsed/60);
+      if(timeLabel) timeLabel.textContent = `Time: ${m}:${s}`;
+    }
+
+    function renderEndOverlay(){
+      const scale = window.devicePixelRatio || 1;
+      ctx.fillStyle = 'rgba(0,0,0,.55)';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+
+      const panelW = Math.min(canvas.width*0.8, 780*scale);
+      const panelH = Math.min(canvas.height*0.6, 380*scale);
+      const x = (canvas.width - panelW)/2;
+      const y = (canvas.height - panelH)/2;
+      roundRect(x,y,panelW,panelH,18*scale,'#141831');
+
+      ctx.fillStyle = '#e8eaf6';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.font = `${Math.floor(36*scale)}px ui-sans-serif, system-ui`;
+      ctx.fillText('You Win!', x + panelW/2, y + 20*scale);
+
+      const { perfect, moves, delta, time, misses } = state.endStats || {perfect:0,moves:0,delta:0,time:0,misses:0};
+      const mm = Math.floor(time/60), ss = Math.floor(time%60).toString().padStart(2,'0');
+      ctx.font = `${Math.floor(18*scale)}px ui-sans-serif, system-ui`;
+      const lines = [
+        `Moves: ${moves}`,
+        `Dynamic perfect: ${perfect}`,
+        `Off by (avoidable): ${delta}`,
+        `Misses counted: ${misses}`,
+        `Time: ${mm}:${ss}`,
+      ];
+      lines.forEach((t,i)=>{
+        ctx.fillStyle = '#c7cbea';
+        ctx.fillText(t, x + panelW/2, y + 90*scale + i*28*scale);
+      });
+
+      const rating = delta===0 ? 'Perfect discipline!' : (delta<=2 ? 'Sharp memory' : (delta<=5 ? 'Getting tighter' : 'Keep training'));
+      ctx.font = `${Math.floor(20*scale)}px ui-sans-serif, system-ui`;
+      ctx.fillStyle = '#7c5cff';
+      ctx.fillText(rating, x + panelW/2, y + panelH - 90*scale);
+
+      ctx.font = `${Math.floor(14*scale)}px ui-sans-serif, system-ui`;
+      ctx.fillStyle = '#9aa0b8';
+      ctx.fillText('Press N, Enter/Space or click to play again', x + panelW/2, y + panelH - 54*scale);
+    }
+
+    function draw(){
+      const scale = window.devicePixelRatio || 1;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+
+      const grad = ctx.createLinearGradient(0,0,canvas.width,canvas.height);
+      grad.addColorStop(0,'#0a0d1a'); grad.addColorStop(1,'#0b1022');
+      ctx.fillStyle = grad; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+      roundRect(state.board.x-8*scale, state.board.y-8*scale, state.board.w+16*scale, state.board.h+16*scale, 18*scale, 'rgba(0,0,0,.25)');
+
+      for(let i=0;i<state.cards.length;i++){
+        const c = state.cards[i];
+        const r = cardRect(i);
+        const anim = state.anims.get(c.id) || { t: c.flipped ? 1 : 0 };
+        const t = anim.t;
+        const flipScale = Math.cos((1 - t) * Math.PI);
+        const s = Math.abs(flipScale);
+
+        ctx.save();
+        ctx.translate(r.x + r.w/2, r.y + r.h/2);
+        ctx.scale(s, 1);
+        ctx.translate(-r.w/2, -r.h/2);
+
+        const baseColor = c.matched ? '#102d1f' : '#141831';
+        drawCard(0,0,r.w,r.h, baseColor);
+
+        ctx.save();
+        ctx.globalAlpha = c.flipped ? 1 : 0.0;
+        if(c.flipped){
+          ctx.fillStyle = '#0d1228';
+          roundRect(8,8,r.w-16,r.h-16,12,'#0d1228');
+          ctx.font = `${Math.floor(r.h*0.5)}px system-ui, Apple Color Emoji, Segoe UI Emoji`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(c.value, r.w/2, r.h/2 + 2);
+        }
+        ctx.restore();
+
+        ctx.save();
+        ctx.globalAlpha = c.flipped ? 0 : 1;
+        if(!c.flipped){
+          const pad = 16; const step=10; const ww=r.w-2*pad; const hh=r.h-2*pad;
+          ctx.translate(pad,pad);
+          ctx.strokeStyle = '#232a56';
+          ctx.lineWidth = 2;
+          for(let x=0;x<ww;x+=step){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(0,x); ctx.stroke(); }
+          ctx.strokeStyle = '#2e356b';
+          for(let y=0;y<hh;y+=step){ ctx.beginPath(); ctx.moveTo(ww,y); ctx.lineTo(y,hh); ctx.stroke(); }
+          ctx.translate(-pad,-pad);
+        }
+        ctx.restore();
+        ctx.restore();
+
+        if(c.flipped || c.matched){
+          ctx.strokeStyle = c.matched ? '#2ecc71' : '#7c5cff';
+          ctx.lineWidth = 3*scale; roundedStroke(r.x+2, r.y+2, r.w-4, r.h-4, 12*scale);
+        }
+      }
+
+      for(const p of particles){
+        const g = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r);
+        g.addColorStop(0,'rgba(124,92,255,.7)');
+        g.addColorStop(1,'rgba(124,92,255,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+      }
+
+      if(state.showEnd && state.endStats){
+        renderEndOverlay();
+      }
+    }
+
+    function drawCard(x,y,w,h, fill){
+      roundRect(x,y,w,h,14, fill);
+      const grd = ctx.createLinearGradient(x,y,x,y+h);
+      grd.addColorStop(0,'rgba(255,255,255,.06)');
+      grd.addColorStop(1,'rgba(0,0,0,.15)');
+      ctx.fillStyle = grd; roundRect(x+2,y+2,w-4,h-4,12);
+    }
+
+    function roundRect(x,y,w,h,r, fill){
+      ctx.beginPath();
+      ctx.moveTo(x+r,y);
+      ctx.arcTo(x+w,y,x+w,y+h,r);
+      ctx.arcTo(x+w,y+h,x,y+h,r);
+      ctx.arcTo(x,y+h,x,y,r);
+      ctx.arcTo(x,y,x+w,y,r);
+      ctx.closePath();
+      if(fill!=null){ ctx.fillStyle = fill; ctx.fill(); }
+      else ctx.fill();
+    }
+    function roundedStroke(x,y,w,h,r){
+      ctx.beginPath();
+      ctx.moveTo(x+r,y);
+      ctx.arcTo(x+w,y,x+w,y+h,r);
+      ctx.arcTo(x+w,y+h,x,y+h,r);
+      ctx.arcTo(x,y+h,x,y,r);
+      ctx.arcTo(x,y,x+w,y,r);
+      ctx.closePath();
+      ctx.stroke();
+    }
+
+    // input handling
+    function handlePointer(clientX, clientY){
+      if(state.lock || state.showEnd) return;
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = (clientX - rect.left) * scaleX;
+      const y = (clientY - rect.top) * scaleY;
+      for(let i=0;i<state.cards.length;i++){
+        if(pointInRect(x,y, cardRect(i))){
+          flip(i); break;
+        }
+      }
+    }
+
+    canvas.addEventListener('click', e => {
+      if(state.showEnd){ startGame(diffSel.value); return; }
+      handlePointer(e.clientX, e.clientY);
+    });
+    canvas.addEventListener('touchstart', e => {
+      const t = e.changedTouches[0];
+      if(state.showEnd){ startGame(diffSel.value); return; }
+      handlePointer(t.clientX, t.clientY); e.preventDefault();
+    }, { passive: false });
+
+    // controls
+    newGameBtn.addEventListener('click', () => startGame(diffSel.value));
+    diffSel.addEventListener('change', () => startGame(diffSel.value));
+    window.addEventListener('keydown', (e) => {
+      if(e.key.toLowerCase() === 'n') startGame(diffSel.value);
+      if(e.key.toLowerCase() === 't') runTests();
+      if(state.showEnd && (e.key==='Enter' || e.key===' ')) startGame(diffSel.value);
+    });
+
+    window.addEventListener('resize', () => { layout(); draw(); });
+
+    // --- Built-in tests (press T) ---
+    function runTests(){
+      const results = [];
+      function ok(name, cond){ results.push({ name, pass: !!cond }); if(!cond) console.error('[FAIL]', name); else console.log('[PASS]', name); }
+      try{
+        // DOM
+        ok('DOM: pairsLabel exists', !!pairsLabel);
+        ok('DOM: movesLabel exists', !!movesLabel);
+        ok('DOM: timeLabel exists',  !!timeLabel);
+        ok('DOM: missLabel exists',  !!missLabel);
+        ok('DOM: newGame exists',    !!newGameBtn);
+        ok('DOM: difficulty exists', !!diffSel);
+
+        // Boot basics
+        diffSel.value = 'easy';
+        startGame('easy');
+        const totalPairs = (state.grid.cols * state.grid.rows) / 2;
+        ok('Game started: moves=0', state.moves === 0);
+        ok('Game started: matchedCount=0', state.matchedCount === 0);
+        ok('Pairs count on easy', totalPairs === 6);
+
+        // Dynamic perfect math: perfect = moves - misses
+        state.moves = 7; state.misses = 2; finalizeWin();
+        ok('Perfect equals moves - misses', state.endStats.perfect === 5);
+        ok('Delta equals misses', state.endStats.delta === 2);
+
+        // Deterministic deck to simulate a miss scenario on 2x2 grid
+        // Arrange deck: [A, B, A, B]
+        state.grid = { cols: 2, rows: 2 };
+        state.cards = [
+          {id:0,value:'A',matched:false,flipped:false},
+          {id:1,value:'B',matched:false,flipped:false},
+          {id:2,value:'A',matched:false,flipped:false},
+          {id:3,value:'B',matched:false,flipped:false},
+        ];
+        resetKnowledge(); state.revealed=[]; state.moves=0; state.misses=0; state.matchedCount=0;
+        // Flip 0 (A) and 1 (B) -> mismatch, no miss should be counted
+        flip(0); flip(1);
+        ok('After first mismatch: misses=0', state.misses === 0);
+        // Now choose 2 (A) as first, then wrongly choose 3 (B) while mate 0 is known -> this is a miss
+        flip(2); flip(3);
+        ok('Second move counted as miss', state.misses === 1);
+        // Finish correctly: now known pair B (1 & 3) exists; pick 1 then 3 — should not add a miss
+        flip(1); flip(3);
+        ok('No extra miss when clearing known pair', state.misses === 1);
+      }catch(err){
+        console.error('Test run crashed:', err);
+        results.push({ name: 'Test harness crashed', pass: false, err });
+      }
+      const passed = results.filter(r=>r.pass).length;
+      console.log(`Tests: ${passed}/${results.length} passed`);
+      return results;
+    }
+    window._runTests = runTests;
+
+    if(location.hash.toLowerCase().includes('#test')){
+      setTimeout(runTests, 50);
+    }
+
+    // main loop
+    let last = performance.now();
+    function loop(now){
+      const dt = Math.min(0.033, (now - last)/1000);
+      last = now;
+      update(dt); draw();
+      requestAnimationFrame(loop);
+    }
+    layout(); startGame('medium'); requestAnimationFrame(loop);
+  })();
+  </script>
+</body>
+</html>
