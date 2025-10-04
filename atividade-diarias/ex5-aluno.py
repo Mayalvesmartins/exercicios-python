@@ -1,24 +1,37 @@
-class Aluno:
-    def __init__(self):
-        self.nome = input("Digite o nome: ")
-        self.nota1 = float(input("Digite a primeira nota: "))
-        self.nota2 = float(input("Digite a segunda nota: "))
+# class Aluno:
+#     def __init__(self):
+#         self.nome = input("Digite o nome: ")
+#         self.nota1 = float(input("Digite a primeira nota: "))
+#         self.nota2 = float(input("Digite a segunda nota: "))
 
-    def media(self):
-        return (self.nota1 + self.nota2) / 2
+#     def media(self):
+#         return (self.nota1 + self.nota2) / 2
 
-    def situacao(self):
-        if self.media() >= 7:
-            return "Aprovado"
-        else:
-            return "Reprovado"
+#     def situacao(self):
+#         if self.media() >= 7:
+#             return "Aprovado"
+#         else:
+#             return "Reprovado"
     
-    def printar(self):
-        print(f"Sua nota foi {self.media()}, e voce esta {self.situacao()}")
+#     def printar(self):
+#         print(f"Sua nota foi {self.media()}, e voce esta {self.situacao()}")
     
-aluno1 = Aluno()
+# aluno1 = Aluno()
 
-aluno1.printar()
+# aluno1.printar()
+
+
+nome = "mayara"
+altura = 1.63
+peso = 66
+
+imc = peso / altura ** 2
+
+
+print(f"{nome} tem {altura} de altura pesa {peso}  Kg  e o seu IMC é {imc:.2f}")
+
+
+
 
 
 
