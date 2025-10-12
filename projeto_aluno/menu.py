@@ -29,7 +29,7 @@ def menu():
         elif opcao == "2":
             alunos = listar_alunos(conection())
             for a in alunos:
-                print(a)
+                print(f"{a[0]} - {a[1]} - {a[2]}")
         
         elif opcao == "3": #alterar
             nome = input("Nome do aluno para editar: " )
